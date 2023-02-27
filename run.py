@@ -6,4 +6,5 @@ with Wbijam(teardown=False) as bot:
     bot.choose_anime(anime_name="Bleach")
     bot.choose_episode()
     bot.choose_player()
+    bot.play()
     print("eesa")
