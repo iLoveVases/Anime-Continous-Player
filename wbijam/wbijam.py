@@ -1,4 +1,5 @@
 from selenium import webdriver
+from wbijam.calculations import *
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -11,6 +12,10 @@ import time
 class Wbijam:
     def __init__(self, teardown=False):
 
+        self.end_offset = 2
+        self.ad_length_time = None
+        self.page = None
+        self.length_time = None
         self.actual_time = None
         self.buttons_bar = None
         self.current_player_iframe = None
@@ -57,13 +62,17 @@ class Wbijam:
         except:
             print("No Cookie pop-up")
 
+    def skip_to(self, page):
+        self.page = page
+        self.driver.get(self.page)
+
     def choose_anime(self, anime_name="Bleach"):
         self.anime_name = anime_name
         self.driver.find_element(By.LINK_TEXT, self.anime_name).click()
         self.driver.implicitly_wait(5)
         self.driver.find_element(By.LINK_TEXT, "Pierwsza seria").click()
 
-    def choose_episode(self, episode_number='040'):  # jakis bug z 024
+    def choose_episode(self, episode_number='041'):  # jakis bug z 024
         self.episode_number = str(episode_number)
         self.episodes_list = self.driver.find_elements(By.CLASS_NAME, "lista_hover")
 
@@ -84,13 +93,13 @@ class Wbijam:
                 break
 
     def play(self):
+        # Find correct iframe for video player
         self.iframes = self.driver.find_elements(By.TAG_NAME, 'iframe')
         for iframe in self.iframes:
             if "cda" in iframe.get_attribute('src'):
                 print(iframe.get_attribute('src'))
                 self.current_player_iframe = iframe
                 break
-
         self.driver.switch_to.frame(self.current_player_iframe)
 
         try:
@@ -100,11 +109,38 @@ class Wbijam:
             )
             self.buttons_bar = bar
         finally:
-            self.buttons_bar.find_element(By.CLASS_NAME, "pb.pb-play").click()
-            self.buttons_bar.find_element(By.CLASS_NAME, "pb.pb-fullscreen").click()
+            self.buttons_bar.find_element(By.CLASS_NAME, "pb.pb-play").click()          # play
+            self.buttons_bar.find_element(By.CLASS_NAME, "pb.pb-fullscreen").click()    # full-screen
 
-        # time.sleep(3)
-        # self.actual_time = self.buttons_bar.find_element(By.CLASS_NAME, "pb-actual-time").text
-        # print(str(self.actual_time))
+        # get ad duration
+        self.ad_length_time = self.buttons_bar.find_element(By.CLASS_NAME, "pb-max-time").text
+        # converting string "0:20" to seconds (20) as int
+        self.ad_length_time = covert_to_seconds(time_str=self.ad_length_time)
+
+        if self.ad_length_time < 300:  # 300[s] -> 5[min]
+            print("ad length: " + str(self.ad_length_time))
+            # muting ad:
+            self.buttons_bar.find_element(By.CLASS_NAME, "pb.pb-volume-mute").click()
+            time.sleep(self.ad_length_time)
+            self.buttons_bar.find_element(By.CLASS_NAME, "pb.pb-volume-mute.pb-volume-mute-active").click()
+            # receive true episode length after ad:
+            time.sleep(1)
+            self.length_time = covert_to_seconds(
+                time_str=self.buttons_bar.find_element(By.CLASS_NAME, "pb-max-time").text)
+        else:
+            # in case ad will not appear
+            self.length_time = self.ad_length_time
+
+        while True:
+            # using .text below occasionally caused bug sending empty string
+            self.actual_time = self.buttons_bar.find_element(By.CLASS_NAME, "pb-actual-time").get_attribute("innerHTML")
+            self.actual_time = covert_to_seconds(self.actual_time)
+            print(str(self.actual_time))
+            time.sleep(1)
+
+            if self.actual_time >= self.length_time - self.end_offset:
+                self.driver.back()
+                print("Episode end")
+                break
 
         self.driver.switch_to.default_content()

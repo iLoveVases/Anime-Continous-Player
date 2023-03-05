@@ -7,4 +7,4 @@ with Wbijam(teardown=False) as bot:
     bot.choose_episode()
     bot.choose_player()
     bot.play()
-    print("eesa")
+
