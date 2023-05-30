@@ -48,7 +48,7 @@ class Wbijam:
 
     def land_main_page(self):
         self.driver.get(MainPage.MAIN_PAGE)
-
+        self.driver.implicitly_wait(1)  # added for better compatibility
         try:
             cookie_one = WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located(MainPage.COOKIE_BUTTON_1)
@@ -75,7 +75,6 @@ class Wbijam:
     def choose_episode(self, episode_number='041'):  # jakis bug z 024
         self.episode_number = str(episode_number)
         self.episodes_list = self.driver.find_elements(By.CLASS_NAME, "lista_hover")
-
         for episode in self.episodes_list:
             if self.episode_number in episode.text.split(":")[0]:
                 print(episode.text.split(":")[0])
@@ -124,7 +123,7 @@ class Wbijam:
             time.sleep(self.ad_length_time)
             self.buttons_bar.find_element(By.CLASS_NAME, "pb.pb-volume-mute.pb-volume-mute-active").click()
             # receive true episode length after ad:
-            time.sleep(1)
+            time.sleep(2)  # added for better compatibility
             self.length_time = covert_to_seconds(
                 time_str=self.buttons_bar.find_element(By.CLASS_NAME, "pb-max-time").text)
         else:
